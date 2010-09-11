@@ -1,0 +1,5 @@
+uses twitter api to sent tweets to an ledsign. based on "repeater" from tweepy-examples.
+
+uses tweepy http://github.com/joshthecoder/tweepy
+
+
