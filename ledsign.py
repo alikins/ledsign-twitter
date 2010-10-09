@@ -59,6 +59,9 @@ import time
 # import exceptions
 from urllib2 import HTTPError
 
+# this sign model to drive the sign
+import signmodule
+
 # globals - The following is populated later by load_lists
 IGNORE_LIST = []
 FILTER_WORDS = []
@@ -117,14 +120,11 @@ def careful_retweet(api,reply):
 
     load_lists()
 
-    debug_print('Preparing to retweet #%d' % (reply.id,))
+    debug_print('Preparing to display #%d' % (reply.id,))
     debug_print('reply: %s' % reply)
     normalized_tweet = reply.text.lower().strip()
 
-
-    print "\n", reply.user.screen_name.lower()
-    print reply.text
-    # Don't try to retweet our own tweets
+   # Don't try to retweet our own tweets
     if reply.user.screen_name.lower() == settings.username.lower():
         return
 
@@ -146,15 +146,24 @@ def careful_retweet(api,reply):
     if normalized_tweet.split().count('@'+ reply.user.screen_name.lower()) > 0:
         return
 
-    debug_print('Retweeting #%d' % (reply.id,))
-#    return
-    return api.retweet(id=reply.id)
+
+    print "\n", reply.user.screen_name.lower()
+    print reply.text
+
+    sign = signmodule.Sign("/dev/tty.KeySerial1")
+    sign.show("%s: %s\n" % (reply.user.screen_name.lower(), reply.text)) 
+#    debug_print('Retweeting #%d' % (reply.id,))
+    #status = api.retweet(id=reply.id)
+    #print "status", status
+    #return status
 
 
 def main():
     run_auth = False
     if len(sys.argv) > 1 and sys.argv[1] == "--auth":
         run_auth = True
+
+#    sign = signmodule.Sign("/dev/tty.KeySerial1")
 
     auth = tweepy.OAuthHandler(consumer_key=settings.consumer_key,
 	consumer_secret=settings.consumer_secret)
@@ -200,9 +209,14 @@ def main():
         try:
             debug_print('Retrieving mentions')
             replies = api.mentions()
+	    print replies
         except Exception, e:    # quit on error here
             print e
-            sys.exit(1)
+
+            print "\n\n\n what the heck just happend? \n\n\n"
+	    #chill out for a while, then try again
+	    time.sleep(300)
+            continue
 
         # want these in ascending order, api orders them descending
         replies.reverse()
@@ -220,15 +234,17 @@ def main():
                 except HTTPError, e:
                     print e.code()
                     print e.read()
+		    raise
                 except Exception, e:
                     print 'e: %s' % e
                     print repr(e)
+		    raise
                 else:
                     print "saving id file", reply.id
                     save_id(settings.last_id_file,reply.id)
 
         # twitter api is rate limited to 350 requests an hour...
-        time.sleep(30)
+        time.sleep(settings.interval)
 
     debug_print('Exiting cleanly')
 
